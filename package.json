@@ -13,8 +13,10 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.8",
+		"@cloudflare/vitest-pool-workers": "^0.13.2",
 		"@types/node": "^25.5.0",
 		"typescript": "^5.5.2",
+		"vitest": "^4.1.0",
 		"wrangler": "^4.75.0"
 	},
 	"dependencies": {

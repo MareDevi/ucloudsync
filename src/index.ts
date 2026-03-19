@@ -1,42 +1,74 @@
-/**
- * Welcome to Cloudflare Workers!
- *
- * This is a template for a Scheduled Worker: a Worker that can run on a
- * configurable interval:
- * https://developers.cloudflare.com/workers/platform/triggers/cron-triggers/
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Run `curl "http://localhost:8787/__scheduled?cron=*+*+*+*+*"` to see your Worker in action
- * - Run `npm run deploy` to publish your Worker
- *
- * Bind resources to your Worker in `wrangler.jsonc`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
+import { addUser, getUcloudUndoneList } from "./clients/ucloud";
+
+function jsonResponse(body: unknown, status = 200): Response {
+	return new Response(JSON.stringify(body), {
+		status,
+		headers: {
+			"content-type": "application/json; charset=utf-8",
+		},
+	});
+}
 
 export default {
-	async fetch(req) {
+	async fetch(req: Request, env: Env): Promise<Response> {
 		const url = new URL(req.url);
-		url.pathname = "/__scheduled";
-		url.searchParams.append("cron", "* * * * *");
-		return new Response(
-			`To test the scheduled handler, ensure you have used the "--test-scheduled" then try running "curl ${url.href}".`,
-		);
+
+		if (
+			url.pathname === "/undoenlist" ||
+			url.pathname === "/ucloud/undoenlist"
+		) {
+			if (req.method !== "GET" && req.method !== "POST") {
+				return jsonResponse({ error: "Method not allowed" }, 405);
+			}
+
+			const ucloudAccount = env.UCLOUD_ACCOUNT;
+			const ucloudPassword = env.UCLOUD_PASSWORD;
+
+			if (!ucloudAccount || !ucloudPassword) {
+				return jsonResponse(
+					{
+						error:
+							"Missing environment variables. Please set UCLOUD_ACCOUNT and UCLOUD_PASSWORD.",
+					},
+					500,
+				);
+			}
+
+			try {
+				const user = await addUser(ucloudAccount, ucloudPassword);
+				const upstreamData = await getUcloudUndoneList(user);
+
+				return jsonResponse(
+					{
+						ok: true,
+						status: 200,
+						data: upstreamData,
+					},
+					200,
+				);
+			} catch (error) {
+				return jsonResponse(
+					{
+						error: "Failed to get UCloud undone list",
+						detail: error instanceof Error ? error.message : String(error),
+					},
+					500,
+				);
+			}
+		}
+
+		if (url.pathname === "/") {
+			return new Response(
+				"Use /undoenlist to test UCloud request with UCLOUD_ACCOUNT and UCLOUD_PASSWORD from env.",
+			);
+		}
+
+		return new Response("Not Found", { status: 404 });
 	},
 
-	// The scheduled handler is invoked at the interval set in our wrangler.jsonc's
-	// [[triggers]] configuration.
 	async scheduled(event, _env, _ctx): Promise<void> {
-		// A Cron Trigger can make requests to other endpoints on the Internet,
-		// publish to a Queue, query a D1 Database, and much more.
-		//
-		// We'll keep it simple and make an API call to a Cloudflare API:
 		const resp = await fetch("https://api.cloudflare.com/client/v4/ips");
 		const wasSuccessful = resp.ok ? "success" : "fail";
-
-		// You could store this result in KV, write to a D1 Database, or publish to a Queue.
-		// In this template, we'll just log the result:
 		console.log(`trigger fired at ${event.cron}: ${wasSuccessful}`);
 	},
 } satisfies ExportedHandler<Env>;
