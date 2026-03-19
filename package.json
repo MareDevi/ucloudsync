@@ -16,5 +16,9 @@
 		"@types/node": "^25.5.0",
 		"typescript": "^5.5.2",
 		"wrangler": "^4.75.0"
+	},
+	"dependencies": {
+		"@byrdocs/bupt-auth": "npm:@jsr/byrdocs__bupt-auth",
+		"hono": "^4.12.8"
 	}
 }
