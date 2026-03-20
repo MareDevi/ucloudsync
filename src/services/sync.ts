@@ -1,6 +1,7 @@
 import type { UserInfo } from "@byrdocs/bupt-auth";
 import { formatTickTickDate, TickTickClient } from "../adapters/ticktick";
 import { UcloudClient } from "../clients/ucloud";
+import type { CryptoHelper } from "../utils/crypto";
 
 export interface UserRow {
 	id: string;
@@ -29,6 +30,7 @@ export interface SyncedTaskRow {
 
 /**
  * A simple regex-based HTML to Markdown converter for basic tags.
+ * Note: For production, consider a more robust parser.
  */
 function htmlToMarkdown(html: string): string {
 	if (!html) return "";
@@ -44,7 +46,7 @@ function htmlToMarkdown(html: string): string {
 		.replace(/<i[^>]*>/gi, "_")
 		.replace(/<\/i>/gi, "_")
 		.replace(/<br\s*\/?>/gi, "\n")
-		.replace(/<[^>]+>/g, "") // Strip any remaining tags
+		.replace(/<[^>]+>/g, "")
 		.replace(/&nbsp;/g, " ")
 		.replace(/&lt;/g, "<")
 		.replace(/&gt;/g, ">")
@@ -54,7 +56,10 @@ function htmlToMarkdown(html: string): string {
 }
 
 export class SyncService {
-	constructor(private readonly db: D1Database) {}
+	constructor(
+		private readonly db: D1Database,
+		private readonly crypto: CryptoHelper,
+	) {}
 
 	async syncAll(): Promise<void> {
 		const { results: users } = await this.db
@@ -63,13 +68,16 @@ export class SyncService {
 			)
 			.all<UserRow>();
 
-		for (const user of users) {
-			try {
-				await this.syncUser(user);
-			} catch (error) {
-				console.error(`Failed to sync user ${user.id}:`, error);
-			}
-		}
+		// Parallel sync with settled results to ensure all users are attempted
+		await Promise.allSettled(
+			users.map(async (user) => {
+				try {
+					await this.syncUser(user);
+				} catch (error) {
+					console.error(`Failed to sync user ${user.id}:`, error);
+				}
+			}),
+		);
 	}
 
 	async syncUser(user: UserRow): Promise<{
@@ -86,6 +94,9 @@ export class SyncService {
 			throw new Error("TickTick access token missing");
 		}
 
+		// Decrypt password for UCloud login if needed
+		const plainPassword = await this.crypto.decrypt(user.ucloud_password);
+
 		const ucloudClient = new UcloudClient(
 			user.ucloud_access_token || undefined,
 		);
@@ -95,7 +106,7 @@ export class SyncService {
 		let ucloudAccessToken = user.ucloud_access_token;
 		const ucloudRefreshToken = user.ucloud_refresh_token;
 
-		// 1. Auth check and token management
+		// 1. Auth management (EAFP style)
 		try {
 			let needsRefresh = !ucloudAccessToken || !userId;
 			if (ucloudAccessToken && userId) {
@@ -118,13 +129,13 @@ export class SyncService {
 					} catch (_refreshError) {
 						userInfo = await UcloudClient.login(
 							user.ucloud_account,
-							user.ucloud_password,
+							plainPassword,
 						);
 					}
 				} else {
 					userInfo = await UcloudClient.login(
 						user.ucloud_account,
-						user.ucloud_password,
+						plainPassword,
 					);
 				}
 				userId = userInfo.user_id;
@@ -146,17 +157,18 @@ export class SyncService {
 
 		const targetProjectId = user.ticktick_project_id || "inbox";
 
-		// 2. Fetch data from both sides
-		const undoneData = await ucloudClient.getUndoneList(userId);
-		const ticktickData =
-			await ticktickClient.getProjectWithData(targetProjectId);
+		// 2. Data fetching
+		const [undoneData, ticktickData, localSyncedTasksResult] =
+			await Promise.all([
+				ucloudClient.getUndoneList(userId),
+				ticktickClient.getProjectWithData(targetProjectId),
+				this.db
+					.prepare("SELECT * FROM synced_tasks WHERE user_id = ?")
+					.bind(user.id)
+					.all<SyncedTaskRow>(),
+			]);
 
-		// Current synced records in DB
-		const { results: localSyncedTasks } = await this.db
-			.prepare("SELECT * FROM synced_tasks WHERE user_id = ?")
-			.bind(user.id)
-			.all<SyncedTaskRow>();
-
+		const localSyncedTasks = localSyncedTasksResult.results;
 		const localSyncedMap = new Map(
 			localSyncedTasks.map((t) => [t.ucloud_activity_id, t]),
 		);
@@ -170,7 +182,9 @@ export class SyncService {
 		let completedCount = 0;
 		let skippedCount = 0;
 
-		// 3. Process UCloud Undone List (New or Update)
+		// 3. Process UCloud Undone List (Upsert)
+		// Note: Using Promise.all here might hit rate limits, so we do it in a loop for now
+		// but consider batching if needed.
 		for (const item of undoneData.undoneList) {
 			try {
 				const detail = await ucloudClient.getUndoneDetail(item.activityId);
@@ -179,7 +193,7 @@ export class SyncService {
 					? ticktickActiveMap.get(syncedRecord.ticktick_task_id)
 					: null;
 
-				const taskTitle = `[${item.siteName}] ${
+				const taskTitle = `[${detail.chapterName}] ${
 					detail.assignmentTitle || item.activityName
 				}`;
 				const taskDueDate = formatTickTickDate(
@@ -238,7 +252,7 @@ export class SyncService {
 			}
 		}
 
-		// 4. Process Synced tasks that are NO LONGER in UCloud Undone List (Check for Completion)
+		// 4. Process completions
 		for (const [ucloudId, record] of localSyncedMap) {
 			if (!ucloudUndoneMap.has(ucloudId) && record.ucloud_status === 0) {
 				try {
@@ -257,6 +271,7 @@ export class SyncService {
 								.run();
 							completedCount++;
 						} catch (_e) {
+							// If task already completed in TickTick
 							await this.db
 								.prepare(
 									"UPDATE synced_tasks SET ucloud_status = ?, ticktick_status = 2 WHERE ucloud_activity_id = ? AND user_id = ?",
