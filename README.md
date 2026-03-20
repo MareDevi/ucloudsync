@@ -9,7 +9,7 @@
 - **Database**: Cloudflare D1 (SQLite for state & user persistence)
 - **UI**: Hono JSX (Server-side rendering)
 - **Sync Logic**: 
-    - 触发器：Cloudflare Triggers (每分钟执行一次)
+    - 触发器：Cloudflare Triggers (每 3 小时执行一次)
     - 并发控制：使用 `Promise.allSettled` 处理多用户同步，防止单点故障阻塞
     - 认证流：BUPT Auth + Dida365 OAuth 2.0
 

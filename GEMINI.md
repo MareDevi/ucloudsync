@@ -64,7 +64,7 @@ npx vitest
 - **Error Handling**: Use `try/catch` blocks around API calls, especially in the sync service, to ensure one user's failure doesn't stop the entire sync process.
 - **Database Operations**: Prefer prepared statements using the `DB` binding (D1Database).
 - **Date Formatting**: TickTick requires a specific ISO-8601-like format (`yyyy-MM-dd'T'HH:mm:ssZ`), handled by `formatTickTickDate` in `src/adapters/ticktick.ts`.
-- **Scheduled Tasks**: The sync runs every minute as defined in `wrangler.jsonc`. Ensure any heavy operations are handled within `ctx.waitUntil`.
+- **Scheduled Tasks**: The sync runs every 3 hours as defined in `wrangler.jsonc`. Ensure any heavy operations are handled within `ctx.waitUntil`.
 
 ## Important Documentation Links
 - [Cloudflare Workers Documentation](https://developers.cloudflare.com/workers/)
