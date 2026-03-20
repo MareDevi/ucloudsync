@@ -21,11 +21,11 @@
 	"vars": {
 		"TICKTICK_CLIENT_ID": "",
 		"TICKTICK_CLIENT_SECRET": "",
-		"TICKTICK_REDIRECT_URI": "http://localhost:8787/oauth/ticktick/callback"
+		"TICKTICK_REDIRECT_URI": "https://ucloudsync.maredevi.workers.dev/oauth/ticktick/callback"
 	},
 	"d1_databases": [
 		{
-			"binding": "ucloudsync_db",
+			"binding": "DB",
 			"database_name": "ucloudsync_db",
 			"database_id": "666e2347-2e2c-42fa-9098-2e146403255c"
 		}
