@@ -11,9 +11,13 @@
 		"enabled": true
 	},
 	"triggers": {
-		"crons": ["0 */3 * * *"]
+		"crons": [
+			"0 */3 * * *"
+		]
 	},
-	"compatibility_flags": ["nodejs_compat"],
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
 	"vars": {
 		"TICKTICK_CLIENT_ID": "",
 		"TICKTICK_CLIENT_SECRET": "",
@@ -21,9 +25,9 @@
 	},
 	"d1_databases": [
 		{
-			"binding": "DB",
+			"binding": "ucloudsync_db",
 			"database_name": "ucloudsync_db",
-			"database_id": "ucloudsync_db"
+			"database_id": "666e2347-2e2c-42fa-9098-2e146403255c"
 		}
 	]
 	/**
