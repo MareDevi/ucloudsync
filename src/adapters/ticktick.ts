@@ -129,15 +129,21 @@ export class TickTickClient {
 }
 
 /**
- * Format a Date to TickTick's expected format: yyyy-MM-dd'T'HH:mm:ssZ
+ * Format a Date to TickTick's expected format using Beijing Time (UTC+8).
+ * yyyy-MM-dd'T'HH:mm:ssZ
  */
 export function formatTickTickDate(date: Date): TickTickDateTime {
 	const pad = (n: number) => n.toString().padStart(2, "0");
-	const yyyy = date.getUTCFullYear();
-	const MM = pad(date.getUTCMonth() + 1);
-	const dd = pad(date.getUTCDate());
-	const HH = pad(date.getUTCHours());
-	const mm = pad(date.getUTCMinutes());
-	const ss = pad(date.getUTCSeconds());
-	return `${yyyy}-${MM}-${dd}T${HH}:${mm}:${ss}+0000`;
+
+	// Since Cloudflare Workers environment is UTC, we add 8 hours to get Beijing Time.
+	const beijingDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+
+	const yyyy = beijingDate.getUTCFullYear();
+	const MM = pad(beijingDate.getUTCMonth() + 1);
+	const dd = pad(beijingDate.getUTCDate());
+	const HH = pad(beijingDate.getUTCHours());
+	const mm = pad(beijingDate.getUTCMinutes());
+	const ss = pad(beijingDate.getUTCSeconds());
+
+	return `${yyyy}-${MM}-${dd}T${HH}:${mm}:${ss}+0800`;
 }

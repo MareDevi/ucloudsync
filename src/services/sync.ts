@@ -2,6 +2,7 @@ import type { UserInfo } from "@byrdocs/bupt-auth";
 import { formatTickTickDate, TickTickClient } from "../adapters/ticktick";
 import { UcloudClient } from "../clients/ucloud";
 import type { CryptoHelper } from "../utils/crypto";
+import { parseUcloudDate } from "../utils/date";
 
 export interface UserRow {
 	id: string;
@@ -197,7 +198,7 @@ export class SyncService {
 					detail.assignmentTitle || item.activityName
 				}`;
 				const taskDueDate = formatTickTickDate(
-					new Date(detail.assignmentEndTime || item.endTime),
+					parseUcloudDate(detail.assignmentEndTime || item.endTime),
 				);
 				const markdownContent = htmlToMarkdown(detail.assignmentContent || "");
 
@@ -207,6 +208,7 @@ export class SyncService {
 						projectId: targetProjectId,
 						content: markdownContent,
 						dueDate: taskDueDate,
+						timeZone: "Asia/Shanghai",
 						priority: 3,
 					});
 
@@ -234,6 +236,7 @@ export class SyncService {
 							title: taskTitle,
 							projectId: targetProjectId,
 							dueDate: taskDueDate,
+							timeZone: "Asia/Shanghai",
 							content: markdownContent,
 						});
 						await this.db

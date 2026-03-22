@@ -139,7 +139,9 @@ export const DashboardPage = ({ user }: { user: UserRow }) => (
 				<div className="desc">
 					Last synchronized:{" "}
 					{user.last_sync_time
-						? new Date(user.last_sync_time * 1000).toLocaleString()
+						? new Date(user.last_sync_time * 1000).toLocaleString("zh-CN", {
+								timeZone: "Asia/Shanghai",
+							})
 						: "Never"}
 				</div>
 				<a

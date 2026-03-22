@@ -1,0 +1,30 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "ucloudsync",
+	"main": "src/index.tsx",
+	"compatibility_date": "2026-03-17",
+	"observability": {
+		"enabled": true
+	},
+	"triggers": {
+		"crons": ["0 */3 * * *"]
+	},
+	"compatibility_flags": ["nodejs_compat"],
+	"vars": {
+		"TICKTICK_CLIENT_ID": "YOUR_TICKTICK_CLIENT_ID",
+		"TICKTICK_CLIENT_SECRET": "YOUR_TICKTICK_CLIENT_SECRET",
+		"TICKTICK_REDIRECT_URI": "https://your-worker.workers.dev/oauth/ticktick/callback",
+		"UCLOUD_SECRET": "YOUR_RANDOM_SECRET_FOR_ENCRYPTION"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "ucloudsync_db",
+			"database_id": "YOUR_D1_DATABASE_ID"
+		}
+	]
+}
