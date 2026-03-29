@@ -77,16 +77,18 @@ export const DashboardPage = ({ user }: { user: UserRow }) => (
 						{user.ketangpai_token ? "Connected" : "Not Connected"}
 					</div>
 				</div>
-				<div style={{ display: "flex", gap: "8px" }}>
+				<div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
 					{user.ketangpai_token && (
-						<form action="/settings/toggle/ketangpai" method="POST">
+						<form action="/settings/toggle/ketangpai" method="POST" style={{ margin: 0 }}>
 							<button
 								type="submit"
 								className="btn"
 								style={{
-									padding: "4px 12px",
+									padding: "0 12px",
 									fontSize: "0.8rem",
 									minWidth: "80px",
+									height: "32px",
+									lineHeight: "32px",
 								}}
 							>
 								{user.ketangpai_enabled ? "ENABLED" : "DISABLED"}
@@ -97,11 +99,15 @@ export const DashboardPage = ({ user }: { user: UserRow }) => (
 						href="/dashboard/bind-ketangpai"
 						className="btn"
 						style={{
-							padding: "4px 12px",
+							padding: "0 12px",
 							fontSize: "0.8rem",
 							minWidth: "80px",
+							height: "32px",
+							lineHeight: "32px",
 							textAlign: "center",
 							display: "inline-block",
+							textDecoration: "none",
+							boxSizing: "border-box"
 						}}
 					>
 						{user.ketangpai_token ? "REBIND" : "BIND"}
