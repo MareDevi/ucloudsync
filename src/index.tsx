@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { TickTickClient } from "./adapters/ticktick";
+import { KetangpaiClient } from "./clients/ketangpai";
 import { UcloudClient } from "./clients/ucloud";
 import type { UserRow } from "./services/sync";
 import { SyncService } from "./services/sync";
@@ -8,6 +9,7 @@ import { CryptoHelper } from "./utils/crypto";
 import {
 	DashboardPage,
 	ErrorPage,
+	KetangpaiBindPage,
 	LoginPage,
 	ProjectSelectPage,
 } from "./views/dashboard";
@@ -111,6 +113,22 @@ app.get("/dashboard/reselect-project", async (c) => {
 	}
 });
 
+app.get("/dashboard/bind-ketangpai", async (c) => {
+	const userId = getCookie(c, "userId");
+	if (!userId) return c.redirect("/");
+
+	try {
+		const qrData = await KetangpaiClient.getLoginQRCode();
+		return c.render(
+			<KetangpaiBindPage qrUrl={qrData.url} codeKey={qrData.code_key} />,
+		);
+	} catch (e) {
+		return c.render(
+			<ErrorPage message={`Failed to get QR code: ${String(e)}`} />,
+		);
+	}
+});
+
 // --- Settings Toggles ---
 
 app.post("/settings/toggle/ucloud", async (c) => {
@@ -118,6 +136,17 @@ app.post("/settings/toggle/ucloud", async (c) => {
 	if (!userId) return c.redirect("/");
 	await c.env.DB.prepare(
 		"UPDATE users SET ucloud_enabled = 1 - ucloud_enabled WHERE id = ?",
+	)
+		.bind(userId)
+		.run();
+	return c.redirect("/dashboard");
+});
+
+app.post("/settings/toggle/ketangpai", async (c) => {
+	const userId = getCookie(c, "userId");
+	if (!userId) return c.redirect("/");
+	await c.env.DB.prepare(
+		"UPDATE users SET ketangpai_enabled = 1 - ketangpai_enabled WHERE id = ?",
 	)
 		.bind(userId)
 		.run();
@@ -180,6 +209,30 @@ app.post("/oauth/ticktick/select-project", async (c) => {
 		.bind(body.projectId, body.userId)
 		.run();
 	return c.redirect("/dashboard");
+});
+
+// --- API ---
+
+app.get("/api/ketangpai/check-status", async (c) => {
+	const userId = getCookie(c, "userId");
+	const codeKey = c.req.query("code_key");
+	if (!userId || !codeKey)
+		return c.json({ status: "error", message: "Missing params" }, 400);
+
+	try {
+		const result = await KetangpaiClient.checkWechatCode(codeKey);
+		if (result.token) {
+			await c.env.DB.prepare(
+				"UPDATE users SET ketangpai_token = ?, ketangpai_uid = ?, ketangpai_enabled = 1 WHERE id = ?",
+			)
+				.bind(result.token, result.uid, userId)
+				.run();
+			return c.json({ status: "success" });
+		}
+		return c.json({ status: "pending" });
+	} catch (e) {
+		return c.json({ status: "error", message: String(e) });
+	}
 });
 
 app.get("/sync", async (c) => {

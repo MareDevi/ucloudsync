@@ -70,6 +70,42 @@ export const DashboardPage = ({ user }: { user: UserRow }) => (
 				</form>
 			</div>
 
+			<div className="status-row" style={{ marginTop: "15px" }}>
+				<div>
+					<div style={{ fontSize: "0.9rem" }}>Ketangpai (课堂派)</div>
+					<div className="desc">
+						{user.ketangpai_token ? "Connected" : "Not Connected"}
+					</div>
+				</div>
+				<div style={{ display: "flex", gap: "8px" }}>
+					{user.ketangpai_token && (
+						<form action="/settings/toggle/ketangpai" method="POST">
+							<button
+								type="submit"
+								className="btn"
+								style={{
+									padding: "4px 12px",
+									fontSize: "0.8rem",
+									minWidth: "80px",
+								}}
+							>
+								{user.ketangpai_enabled ? "ENABLED" : "DISABLED"}
+							</button>
+						</form>
+					)}
+					<a
+						href="/dashboard/bind-ketangpai"
+						className="btn"
+						style={{
+							padding: "4px 12px",
+							fontSize: "0.8rem",
+						}}
+					>
+						{user.ketangpai_token ? "REBIND" : "BIND"}
+					</a>
+				</div>
+			</div>
+
 			<div style={{ marginTop: "30px" }}>
 				<h2>[ SYNC TARGET ]</h2>
 				{user.ticktick_access_token ? (
@@ -152,6 +188,79 @@ export const DashboardPage = ({ user }: { user: UserRow }) => (
 					Force Manual Sync
 				</a>
 			</div>
+		</div>
+	</Layout>
+);
+
+export const KetangpaiBindPage = ({
+	qrUrl,
+	codeKey,
+}: {
+	qrUrl: string;
+	codeKey: string;
+}) => (
+	<Layout title="Bind Ketangpai">
+		<div className="card" style={{ textAlign: "center" }}>
+			<h1>[ KETANGPAI ]</h1>
+			<p className="desc">Scan the QR code with WeChat to login.</p>
+			<div
+				style={{
+					background: "#fff",
+					padding: "10px",
+					display: "inline-block",
+					marginTop: "20px",
+					borderRadius: "8px",
+				}}
+			>
+				<img
+					src={qrUrl}
+					alt="Ketangpai Login QR"
+					style={{ width: "200px", height: "200px" }}
+				/>
+			</div>
+			<div id="status" className="desc" style={{ marginTop: "20px" }}>
+				Waiting for scan...
+			</div>
+			<script
+				dangerouslySetInnerHTML={{
+					__html: `
+                const codeKey = "${codeKey}";
+                const statusDiv = document.getElementById('status');
+                let attempts = 0;
+                const interval = setInterval(async () => {
+                    attempts++;
+                    if (attempts > 60) {
+                        clearInterval(interval);
+                        statusDiv.innerText = "Timeout. Please refresh.";
+                        return;
+                    }
+                    try {
+                        const res = await fetch("/api/ketangpai/check-status?code_key=" + encodeURIComponent(codeKey));
+                        const data = await res.json();
+                        if (data.status === "success") {
+                            clearInterval(interval);
+                            statusDiv.innerText = "Success! Redirecting...";
+                            window.location.href = "/dashboard";
+                        } else if (data.status === "error") {
+                            clearInterval(interval);
+                            statusDiv.innerText = "Error: " + data.message;
+                        } else if (data.status === "pending") {
+                            statusDiv.innerText = "Waiting for scan... (Attempt " + attempts + ")";
+                        }
+                    } catch (e) {
+                        console.error("Polling error:", e);
+                    }
+                }, 2000);
+            `,
+				}}
+			/>
+			<a
+				href="/dashboard"
+				className="btn full"
+				style={{ marginTop: "30px", fontSize: "0.8rem" }}
+			>
+				Cancel
+			</a>
 		</div>
 	</Layout>
 );
