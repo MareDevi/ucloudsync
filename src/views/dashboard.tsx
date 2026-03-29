@@ -99,6 +99,9 @@ export const DashboardPage = ({ user }: { user: UserRow }) => (
 						style={{
 							padding: "4px 12px",
 							fontSize: "0.8rem",
+							minWidth: "80px",
+							textAlign: "center",
+							display: "inline-block",
 						}}
 					>
 						{user.ketangpai_token ? "REBIND" : "BIND"}
