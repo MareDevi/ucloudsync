@@ -230,7 +230,10 @@ export class SyncService {
 					? ticktickActiveMap.get(syncedRecord.ticktick_task_id)
 					: null;
 
-				const taskTitle = `[UCloud][${detail.chapterName}] ${detail.assignmentTitle || item.activityName}`;
+				const chapterPrefix = detail.chapterName?.trim()
+					? `[${detail.chapterName.trim()}]`
+					: "";
+				const taskTitle = `[UCloud]${chapterPrefix} ${detail.assignmentTitle || item.activityName}`;
 				const taskDueDate = formatTickTickDate(
 					parseUcloudDate(detail.assignmentEndTime || item.endTime),
 				);
@@ -356,7 +359,10 @@ export class SyncService {
 				? ticktickActiveMap.get(syncedRecord.ticktick_task_id)
 				: null;
 
-			const taskTitle = `[课堂派][${item.coursename}] ${item.contenttitle}`;
+			const coursePrefix = item.coursename?.trim()
+				? `[${item.coursename.trim()}]`
+				: "";
+			const taskTitle = `[课堂派]${coursePrefix} ${item.contenttitle}`;
 			const taskDueDate = formatTickTickDate(parseKetangpaiDate(item.endtime));
 			const markdownContent = htmlToMarkdown(item.contentdescription || "");
 

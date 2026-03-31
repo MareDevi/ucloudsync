@@ -79,7 +79,11 @@ export const DashboardPage = ({ user }: { user: UserRow }) => (
 				</div>
 				<div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
 					{user.ketangpai_token && (
-						<form action="/settings/toggle/ketangpai" method="POST" style={{ margin: 0 }}>
+						<form
+							action="/settings/toggle/ketangpai"
+							method="POST"
+							style={{ margin: 0 }}
+						>
 							<button
 								type="submit"
 								className="btn"
@@ -107,7 +111,7 @@ export const DashboardPage = ({ user }: { user: UserRow }) => (
 							textAlign: "center",
 							display: "inline-block",
 							textDecoration: "none",
-							boxSizing: "border-box"
+							boxSizing: "border-box",
 						}}
 					>
 						{user.ketangpai_token ? "REBIND" : "BIND"}
