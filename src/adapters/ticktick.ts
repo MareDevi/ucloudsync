@@ -52,6 +52,7 @@ export class TickTickClient {
 			response.status === 204 ||
 			response.headers.get("Content-Length") === "0"
 		) {
+			await response.arrayBuffer();
 			return {} as T;
 		}
 

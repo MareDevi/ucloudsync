@@ -5,6 +5,9 @@ import type { TickTickTask } from "../types/ticktick";
 import type { CryptoHelper } from "../utils/crypto";
 import { parseKetangpaiDate, parseUcloudDate } from "../utils/date";
 
+const SYNC_ELIGIBLE_USERS_WHERE =
+	"ticktick_access_token IS NOT NULL AND ticktick_enabled = 1 AND (ucloud_enabled = 1 OR ketangpai_enabled = 1)";
+
 export interface UserRow {
 	id: string;
 	ucloud_account: string;
@@ -32,6 +35,10 @@ export interface SyncedTaskRow {
 	due_date: string;
 	source_status: number;
 	ticktick_status: number;
+}
+
+export interface SyncQueueMessage {
+	userId: string;
 }
 
 /**
@@ -66,11 +73,24 @@ export class SyncService {
 		private readonly crypto: CryptoHelper,
 	) {}
 
+	async listSyncUserIds(): Promise<string[]> {
+		const { results } = await this.db
+			.prepare(`SELECT id FROM users WHERE ${SYNC_ELIGIBLE_USERS_WHERE}`)
+			.all<{ id: string }>();
+
+		return results.map((row) => row.id);
+	}
+
+	async getUserById(userId: string): Promise<UserRow | null> {
+		return this.db
+			.prepare("SELECT * FROM users WHERE id = ?")
+			.bind(userId)
+			.first();
+	}
+
 	async syncAll(): Promise<void> {
 		const { results: users } = await this.db
-			.prepare(
-				"SELECT * FROM users WHERE ticktick_access_token IS NOT NULL AND ticktick_enabled = 1 AND (ucloud_enabled = 1 OR ketangpai_enabled = 1)",
-			)
+			.prepare(`SELECT * FROM users WHERE ${SYNC_ELIGIBLE_USERS_WHERE}`)
 			.all<UserRow>();
 
 		await Promise.allSettled(

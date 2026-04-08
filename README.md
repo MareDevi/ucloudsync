@@ -7,10 +7,12 @@
 - **Runtime**: Cloudflare Workers (Node.js compatibility mode)
 - **Framework**: Hono (Web & Routing)
 - **Database**: Cloudflare D1 (SQLite for state & user persistence)
+- **Queue**: Cloudflare Queues (asynchronous producer-consumer sync pipeline)
 - **UI**: Hono JSX (Server-side rendering)
-- **Sync Logic**: 
+- **Sync Logic**:
     - 触发器：Cloudflare Triggers (每 3 小时执行一次)
-    - 并发控制：使用 `Promise.allSettled` 处理多用户同步，防止单点故障阻塞
+    - Producer：`scheduled` 仅查询可同步用户并批量写入 `SYNC_QUEUE`
+    - Consumer：`queue` 按用户消费消息并执行单用户同步，失败消息 `retry()`，避免整批阻塞
     - 认证流：BUPT Auth + Dida365 OAuth 2.0
 
 ## 安全实现
@@ -27,6 +29,12 @@
 | `TICKTICK_CLIENT_SECRET` | Dida365 开放平台 Client Secret |
 | `TICKTICK_REDIRECT_URI` | OAuth 回调地址 (例如 `https://your-worker.workers.dev/oauth/ticktick/callback`) |
 | `UCLOUD_SECRET` | **[必填]** 用于 AES 加密的 32 位随机字符串 |
+
+并需配置以下绑定：
+
+- `d1_databases`: `DB`
+- `queues.producers`: `SYNC_QUEUE`（生产者绑定）
+- `queues.consumers`: 绑定同一队列用于消费（可按吞吐调节 `max_batch_size` / `max_batch_timeout`）
 
 可在 Shell 中运行以下命令生成：
 ```bash

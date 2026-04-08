@@ -167,3 +167,5 @@ wrangler.jsonc
 .wrangler/
 
 .vscode/
+.agents/
+skills-lock.json

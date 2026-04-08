@@ -3,7 +3,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { TickTickClient } from "./adapters/ticktick";
 import { KetangpaiClient } from "./clients/ketangpai";
 import { UcloudClient } from "./clients/ucloud";
-import type { UserRow } from "./services/sync";
+import type { SyncQueueMessage, UserRow } from "./services/sync";
 import { SyncService } from "./services/sync";
 import { CryptoHelper } from "./utils/crypto";
 import {
@@ -16,6 +16,7 @@ import {
 
 type Bindings = {
 	DB: D1Database;
+	SYNC_QUEUE: Queue<SyncQueueMessage>;
 	TICKTICK_CLIENT_ID: string;
 	TICKTICK_CLIENT_SECRET: string;
 	TICKTICK_REDIRECT_URI: string;
@@ -261,6 +262,61 @@ export default {
 	) {
 		const crypto = getCrypto(env);
 		const syncService = new SyncService(env.DB, crypto);
-		ctx.waitUntil(syncService.syncAll());
+
+		const userIds = await syncService.listSyncUserIds();
+		if (userIds.length === 0) return;
+
+		const BATCH_SIZE = 100;
+		const enqueuePromises: Promise<void>[] = [];
+
+		for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
+			const batchMessages = userIds
+				.slice(i, i + BATCH_SIZE)
+				.map((userId) => ({ body: { userId } }));
+			enqueuePromises.push(
+				env.SYNC_QUEUE.sendBatch(batchMessages, { contentType: "json" }),
+			);
+		}
+
+		ctx.waitUntil(
+			Promise.all(enqueuePromises).catch((error) => {
+				console.error("Failed to enqueue scheduled sync batch:", error);
+				throw error;
+			}),
+		);
 	},
-} satisfies ExportedHandler<Bindings>;
+	async queue(
+		batch: MessageBatch<SyncQueueMessage>,
+		env: Bindings,
+		_ctx: ExecutionContext,
+	) {
+		const crypto = getCrypto(env);
+		const syncService = new SyncService(env.DB, crypto);
+
+		for (const message of batch.messages) {
+			try {
+				const { userId } = message.body;
+				const user = await syncService.getUserById(userId);
+
+				if (!user) {
+					console.warn(
+						`Queue sync skipped: user ${userId} not found (message ${message.id}).`,
+					);
+					message.ack();
+					continue;
+				}
+
+				await syncService.syncUser(user);
+				message.ack();
+			} catch (error) {
+				console.error("Queue sync failed for message:", {
+					messageId: message.id,
+					attempts: message.attempts,
+					userId: message.body.userId,
+					error,
+				});
+				message.retry();
+			}
+		}
+	},
+} satisfies ExportedHandler<Bindings, SyncQueueMessage>;
